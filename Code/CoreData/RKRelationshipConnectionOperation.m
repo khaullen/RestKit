@@ -142,6 +142,45 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
     return result;
 }
 
+- (NSManagedObject *)createObjectWithEntity:(NSEntityDescription *)entityDescription attributes:(NSDictionary *)attributes
+{
+    NSManagedObject *object = [[NSManagedObject alloc] initWithEntity:entityDescription insertIntoManagedObjectContext:self.managedObjectContext];
+    if ([self.managedObjectCache respondsToSelector:@selector(didCreateObject:)]) [self.managedObjectCache didCreateObject:object];
+    [object setValuesForKeysWithDictionary:attributes];
+    return object;
+}
+
+- (NSSet *)createMissingObjects:(NSSet *)fetchedObjects forConnection:(RKConnectionDescription *)connection withAttributes:(NSDictionary *)attributes
+{
+    if ([attributes count] == 1) {
+        NSString *destinationAttribute = [[attributes allKeys] lastObject];
+        id sourceValue = [attributes valueForKey:destinationAttribute];  // NSArray or NSSet
+        
+        NSSet *identifyingAttributes;
+        if ([sourceValue isKindOfClass:[NSArray class]]) {
+            identifyingAttributes = [NSSet setWithArray:sourceValue];
+        } else if ([sourceValue isKindOfClass:[NSSet class]]) {
+            identifyingAttributes = sourceValue;
+        } else {
+            @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:[NSString stringWithFormat:@"%@ expected an object of class NSArray or NSSet, instead received an object of type %@", NSStringFromClass([self class]), [sourceValue class]] userInfo:nil];
+        }
+        
+        NSSet *fetchedIDAttributes = [fetchedObjects valueForKey:destinationAttribute];
+        NSSet *missingObjectIDAttributes = [identifyingAttributes filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"SELF NOT IN %@", fetchedIDAttributes]];
+        
+        NSMutableSet *createdObjects = [NSMutableSet setWithCapacity:missingObjectIDAttributes.count];
+        for (id attribute in missingObjectIDAttributes) {
+            NSManagedObject *object = [self createObjectWithEntity:[connection.relationship destinationEntity] attributes:@{destinationAttribute: attribute}];
+            [createdObjects addObject:object];
+        }
+        
+        return [fetchedObjects setByAddingObjectsFromSet:createdObjects];
+    } else {
+        RKLogWarning(@"Cannot use find-or-create pattern with compound attributes: %@", [attributes allKeys]);
+        return fetchedObjects;
+    }
+}
+
 - (id)findConnectedValueForConnection:(RKConnectionDescription *)connection shouldConnect:(BOOL *)shouldConnectRelationship
 {
     *shouldConnectRelationship = YES;
@@ -161,13 +200,21 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
         if (connection.destinationPredicate) managedObjects = [managedObjects filteredSetUsingPredicate:connection.destinationPredicate];
         if (!connection.includesSubentities) managedObjects = [managedObjects filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"entity == %@", [connection.relationship destinationEntity]]];
         if ([connection.relationship isToMany]) {
-            connectionResult = managedObjects;
+            connectionResult = connection.findOrCreate ? [self createMissingObjects:managedObjects forConnection:connection withAttributes:attributeValues] : managedObjects;
         } else {
             if ([managedObjects count] > 1) RKLogWarning(@"Retrieved %ld objects satisfying connection criteria for one-to-one relationship connection: only one object will be connected.", (long) [managedObjects count]);
-            if ([managedObjects count]) connectionResult = [managedObjects anyObject];
+            if ([managedObjects count]) {
+                connectionResult = [managedObjects anyObject];
+            } else {
+                if (connection.findOrCreate) {
+                    NSManagedObject *object = [self createObjectWithEntity:[connection.relationship destinationEntity] attributes:attributeValues];
+                    connectionResult = object;
+                }
+            }
         }
     } else if ([connection isKeyPathConnection]) {
         connectionResult = [self.managedObject valueForKeyPath:connection.keyPath];
+        if (connection.findOrCreate) RKLogWarning(@"Cannot use find-or-create pattern for RKRelationshipConnectionOperation of type keyPathConnection");
     } else {
         @throw [NSException exceptionWithName:NSInternalInconsistencyException
                                        reason:[NSString stringWithFormat:@"%@ Attempted to establish a relationship using a mapping that"

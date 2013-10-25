@@ -98,6 +98,13 @@
 @property (nonatomic, copy, readonly) NSDictionary *attributes;
 
 /**
+ Returns a Boolean value that determines if an instance of the destination entity should be created if not found in the context. If `NO`, then no connection will be established if a destination object with matching attributes is not found. If `YES`, and no matching destination object is found, an instance of the destination entity will be created with the given attribute values and the connection will be established.
+ 
+ **Default**: `NO`
+ */
+@property (nonatomic, assign) BOOL findOrCreate;
+
+/**
  Returns a Boolean value indicating if the receiver describes a foreign key connection.
  
  @return `YES` if the receiver describes a foreign key connection, else `NO`.
