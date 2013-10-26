@@ -166,8 +166,8 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
         }
         
         NSSet *fetchedIDAttributes = [fetchedObjects valueForKey:destinationAttribute];
-        NSSet *missingObjectIDAttributes = [identifyingAttributes filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"SELF NOT IN %@", fetchedIDAttributes]];
-        
+        NSSet *missingObjectIDAttributes = [identifyingAttributes filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"!(SELF IN %@)", fetchedIDAttributes]];
+      
         NSMutableSet *createdObjects = [NSMutableSet setWithCapacity:missingObjectIDAttributes.count];
         for (id attribute in missingObjectIDAttributes) {
             NSManagedObject *object = [self createObjectWithEntity:[connection.relationship destinationEntity] attributes:@{destinationAttribute: attribute}];
