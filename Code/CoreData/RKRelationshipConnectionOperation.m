@@ -57,6 +57,22 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
     return RKConnectionAttributeValuesIsNotConnectable(destinationEntityAttributeValues) ? nil : destinationEntityAttributeValues;
 }
 
+static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL *multipleCollections)
+{
+    id firstCollection;
+    for (id key in [attributes allKeys]) {
+        if ([[attributes valueForKey:key] conformsToProtocol:@protocol(NSFastEnumeration)]) {
+            if (firstCollection) {
+                *multipleCollections = YES;
+                return nil;
+            } else {
+                firstCollection = key;
+            }
+        }
+    }
+    return firstCollection;
+}
+
 @interface RKRelationshipConnectionOperation ()
 @property (nonatomic, strong, readwrite) NSManagedObject *managedObject;
 @property (nonatomic, strong, readwrite) NSArray *connections;
@@ -159,33 +175,40 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
 
 - (NSSet *)createMissingObjects:(NSSet *)fetchedObjects forConnection:(RKConnectionDescription *)connection withAttributes:(NSDictionary *)attributes
 {
-    if ([attributes count] == 1) {
-        NSString *destinationAttribute = [[attributes allKeys] lastObject];
-        id sourceValue = [attributes valueForKey:destinationAttribute];  // NSArray or NSSet
-        
-        NSSet *identifyingAttributes;
-        if ([sourceValue isKindOfClass:[NSArray class]]) {
-            identifyingAttributes = [NSSet setWithArray:sourceValue];
-        } else if ([sourceValue isKindOfClass:[NSSet class]]) {
-            identifyingAttributes = sourceValue;
-        } else {
-            @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:[NSString stringWithFormat:@"%@ expected an object of class NSArray or NSSet, instead received an object of type %@", NSStringFromClass([self class]), [sourceValue class]] userInfo:nil];
-        }
-        
-        NSSet *fetchedIDAttributes = [fetchedObjects valueForKey:destinationAttribute];
-        NSSet *missingObjectIDAttributes = [identifyingAttributes filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"!(SELF IN %@)", fetchedIDAttributes]];
-      
-        NSMutableSet *createdObjects = [NSMutableSet setWithCapacity:missingObjectIDAttributes.count];
-        for (id attribute in missingObjectIDAttributes) {
-            NSManagedObject *destinationObject = [self createDestinationObject:connection attributes:@{destinationAttribute: attribute}];
-            [createdObjects addObject:destinationObject];
-        }
-        
-        return [fetchedObjects setByAddingObjectsFromSet:createdObjects];
-    } else {
-        RKLogWarning(@"Cannot use find-or-create pattern with compound attributes: %@", [attributes allKeys]);
+    BOOL multipleCollections;
+    id collectionAttributeKey = RKCollectionAttributeKeyWithAttributes(attributes, &multipleCollections);
+    if (multipleCollections) {
+        RKLogWarning(@"Cannot use find-or-create pattern with compound collection value attributes: %@", attributes);
         return fetchedObjects;
     }
+    if (!collectionAttributeKey) {
+        RKLogWarning(@"No collection attribute values found: %@", attributes);
+        return fetchedObjects;
+    }
+    
+    id collection = [attributes valueForKey:collectionAttributeKey];  // NSArray or NSSet
+    
+    NSSet *identifyingAttributes;
+    if ([collection isKindOfClass:[NSArray class]]) {
+        identifyingAttributes = [NSSet setWithArray:collection];
+    } else if ([collection isKindOfClass:[NSSet class]]) {
+        identifyingAttributes = collection;
+    } else {
+        @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:[NSString stringWithFormat:@"%@ expected an object of class NSArray or NSSet, instead received an object of type %@", NSStringFromClass([self class]), [collection class]] userInfo:nil];
+    }
+    
+    NSSet *fetchedIDAttributes = [fetchedObjects valueForKey:collectionAttributeKey];
+    NSSet *missingObjectIDAttributes = [identifyingAttributes filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"!(SELF IN %@)", fetchedIDAttributes]];
+  
+    NSMutableSet *createdObjects = [NSMutableSet setWithCapacity:missingObjectIDAttributes.count];
+    for (id attributeValue in missingObjectIDAttributes) {
+        NSMutableDictionary *mappingAttributes = [attributes mutableCopy];
+        [mappingAttributes setObject:attributeValue forKey:collectionAttributeKey];
+        NSManagedObject *destinationObject = [self createDestinationObject:connection attributes:mappingAttributes];
+        [createdObjects addObject:destinationObject];
+    }
+    
+    return [fetchedObjects setByAddingObjectsFromSet:createdObjects];
 }
 
 - (id)findConnectedValueForConnection:(RKConnectionDescription *)connection shouldConnect:(BOOL *)shouldConnectRelationship
