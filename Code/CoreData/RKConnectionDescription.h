@@ -19,7 +19,7 @@
 //
 
 #import <CoreData/CoreData.h>
-
+@class RKEntityMapping;
 /**
  The `RKConnectionDescription` class describes a means for connecting a Core Data relationship. Connections can be established either by foreign key, in which case one or more attribute values on the source entity correspond to matching values on the destination entity, or by key path, in which case a key path is evaluated on the object graph to obtain a value for the relationship. Connection objects are used by instances of `RKRelationshipConnectionOperation` to connect a relationship of a given managed object.
  
@@ -98,6 +98,17 @@
 @property (nonatomic, copy, readonly) NSDictionary *attributes;
 
 /**
+ Returns a Boolean value indicating if the receiver describes a foreign key connection.
+ 
+ @return `YES` if the receiver describes a foreign key connection, else `NO`.
+ */
+- (BOOL)isForeignKeyConnection;
+
+///-----------------------------------------------
+/// @name Find or Create
+///-----------------------------------------------
+
+/**
  Returns a Boolean value that determines if an instance of the destination entity should be created if not found in the context. If `NO`, then no connection will be established if a destination object with matching attributes is not found. If `YES`, and no matching destination object is found, an instance of the destination entity will be created with the given attribute values and the connection will be established.
  
  **Default**: `NO`
@@ -105,11 +116,11 @@
 @property (nonatomic, assign) BOOL findOrCreate;
 
 /**
- Returns a Boolean value indicating if the receiver describes a foreign key connection.
+ An optional RKEntityMapping to be used in mapping attributes to a new managed object created via findOrCreate.  This property can be used to recursively find-or-create relationships on the destination object if it contains RKConnectionDescription objects also designated findOrCreate.
  
- @return `YES` if the receiver describes a foreign key connection, else `NO`.
+ If no destinationMapping is provided, it is derived from the attributes dictionary.
  */
-- (BOOL)isForeignKeyConnection;
+@property (nonatomic, strong) RKEntityMapping *destinationMapping;
 
 ///-------------------------------------------
 /// @name Connecting Relationships by Key Path
