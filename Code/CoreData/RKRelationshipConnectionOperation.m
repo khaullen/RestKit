@@ -27,6 +27,7 @@
 #import "RKObjectMappingMatcher.h"
 #import "RKErrors.h"
 #import "RKObjectUtilities.h"
+#import "RKMappingOperation.h"
 
 // Set Logging Component
 #undef RKLogComponent
@@ -142,12 +143,18 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
     return result;
 }
 
-- (NSManagedObject *)createObjectWithEntity:(NSEntityDescription *)entityDescription attributes:(NSDictionary *)attributes
+- (NSManagedObject *)createDestinationObject:(RKConnectionDescription *)connection attributes:(NSDictionary *)attributes
 {
-    NSManagedObject *object = [[NSManagedObject alloc] initWithEntity:entityDescription insertIntoManagedObjectContext:self.managedObjectContext];
-    if ([self.managedObjectCache respondsToSelector:@selector(didCreateObject:)]) [self.managedObjectCache didCreateObject:object];
-    [object setValuesForKeysWithDictionary:attributes];
-    return object;
+    NSManagedObject *destinationObject = [[NSManagedObject alloc] initWithEntity:connection.relationship.destinationEntity insertIntoManagedObjectContext:self.managedObjectContext];
+    if ([self.managedObjectCache respondsToSelector:@selector(didCreateObject:)]) [self.managedObjectCache didCreateObject:destinationObject];
+    RKMappingOperation *operation = [[RKMappingOperation alloc] initWithSourceObject:attributes destinationObject:destinationObject mapping:connection.destinationMapping];
+    NSError *error;
+    [operation performMapping:&error];
+    
+    if (error) RKLogError(@"Unable to create destination object for connection '%@', error: '%@'", connection, error);
+    RKLogDebug(@"Created object '%@' in find-or-create operation for connection '%@'", operation.destinationObject, connection);
+    
+    return operation.destinationObject;
 }
 
 - (NSSet *)createMissingObjects:(NSSet *)fetchedObjects forConnection:(RKConnectionDescription *)connection withAttributes:(NSDictionary *)attributes
@@ -170,8 +177,8 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
       
         NSMutableSet *createdObjects = [NSMutableSet setWithCapacity:missingObjectIDAttributes.count];
         for (id attribute in missingObjectIDAttributes) {
-            NSManagedObject *object = [self createObjectWithEntity:[connection.relationship destinationEntity] attributes:@{destinationAttribute: attribute}];
-            [createdObjects addObject:object];
+            NSManagedObject *destinationObject = [self createDestinationObject:connection attributes:@{destinationAttribute: attribute}];
+            [createdObjects addObject:destinationObject];
         }
         
         return [fetchedObjects setByAddingObjectsFromSet:createdObjects];
@@ -207,8 +214,7 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
                 connectionResult = [managedObjects anyObject];
             } else {
                 if (connection.findOrCreate) {
-                    NSManagedObject *object = [self createObjectWithEntity:[connection.relationship destinationEntity] attributes:attributeValues];
-                    connectionResult = object;
+                    connectionResult = [self createDestinationObject:connection attributes:attributeValues];
                 }
             }
         }

@@ -19,6 +19,7 @@
 //
 
 #import "RKConnectionDescription.h"
+#import "RKEntityMapping.h"
 
 static NSSet *RKSetWithInvalidAttributesForEntity(NSArray *attributes, NSEntityDescription *entity)
 {
@@ -96,6 +97,18 @@ static NSSet *RKSetWithInvalidAttributesForEntity(NSArray *attributes, NSEntityD
     }
     
     return nil;
+}
+
+- (RKEntityMapping *)destinationMapping
+{
+    if (!_destinationMapping) {
+        NSEntityDescription *destinationEntity = self.relationship.destinationEntity;
+        _destinationMapping = [[RKEntityMapping alloc] initWithEntity:destinationEntity];
+        _destinationMapping.assignsDefaultValueForMissingAttributes = YES;
+        [_destinationMapping addAttributeMappingsFromArray:[self.attributes allValues]];
+        _destinationMapping.identificationAttributes = [self.attributes allValues];
+    }
+    return _destinationMapping;
 }
 
 - (BOOL)isForeignKeyConnection
