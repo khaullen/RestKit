@@ -167,8 +167,11 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
     NSError *error;
     [operation performMapping:&error];
     
-    if (error) RKLogError(@"Unable to create destination object for connection '%@', error: '%@'", connection, error);
-    RKLogDebug(@"Created object '%@' in find-or-create operation for connection '%@'", operation.destinationObject, connection);
+    if (error) {
+        RKLogError(@"Unable to create destination object for connection '%@', error: '%@'", connection, error);
+    } else {
+        RKLogDebug(@"Created object '%@' in find-or-create operation for connection '%@'", operation.destinationObject, connection);
+    }
     
     return operation.destinationObject;
 }
