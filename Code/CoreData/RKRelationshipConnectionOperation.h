@@ -22,6 +22,7 @@
 
 @class RKConnectionDescription;
 @protocol RKManagedObjectCaching;
+@protocol RKMappingOperationDataSource;
 
 /**
  The `RKRelationshipConnectionOperation` class is a subclass of `NSOperation` that manages the connection of `NSManagedObject` relationships as described by an `RKConnectionDescription` object. When executed, the operation will find related objects by searching the associated managed object cache for objects matching the connection description and setting them as the value for the relationship being connected.
@@ -42,11 +43,13 @@
  @param managedObject The object to attempt to connect a relationship to.
  @param connections An array of connection objects describing how establish a Core Data relationship between objects.
  @param managedObjectCache The managed object cache from which to attempt to fetch a matching object to satisfy the connection.
+ @param dataSource The data source for new objects created via find-or-create.
  @return The receiver, initialized with the given managed object, connection mapping, and managed object cache.
  */
 - (id)initWithManagedObject:(NSManagedObject *)managedObject
                 connections:(NSArray *)connections
-         managedObjectCache:(id<RKManagedObjectCaching>)managedObjectCache;
+         managedObjectCache:(id<RKManagedObjectCaching>)managedObjectCache
+                 dataSource:(id<RKMappingOperationDataSource>)dataSource;
 
 ///--------------------------------------------
 /// @name Accessing Details About the Operation
@@ -66,6 +69,11 @@
  The managed object cache the receiver will use to fetch a related object satisfying the connection mapping.
  */
 @property (nonatomic, strong, readonly) id<RKManagedObjectCaching> managedObjectCache;
+
+/**
+ The mapping operation data source to be used in the event any new managed objects are created as the result a find-or-create process.
+ */
+@property (nonatomic, strong, readonly) id<RKMappingOperationDataSource> dataSource;
 
 /**
  A dictionary keyed by the name of each relationship that was established by the receiver wherein each value is the objects or objects that were connected.

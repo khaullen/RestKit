@@ -77,6 +77,7 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
 @property (nonatomic, strong, readwrite) NSManagedObject *managedObject;
 @property (nonatomic, strong, readwrite) NSArray *connections;
 @property (nonatomic, strong, readwrite) id<RKManagedObjectCaching> managedObjectCache;
+@property (nonatomic, strong, readwrite) id<RKMappingOperationDataSource> dataSource;
 @property (nonatomic, strong, readwrite) NSError *error;
 @property (nonatomic, strong, readwrite) NSMutableDictionary *connectedValuesByRelationshipName;
 @property (nonatomic, copy) void (^connectionBlock)(RKRelationshipConnectionOperation *operation, RKConnectionDescription *connection, id connectedValue);
@@ -91,16 +92,19 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
 - (id)initWithManagedObject:(NSManagedObject *)managedObject
                 connections:(NSArray *)connections
          managedObjectCache:(id<RKManagedObjectCaching>)managedObjectCache
+                 dataSource:(id<RKMappingOperationDataSource>)dataSource
 {
     NSParameterAssert(managedObject);
     NSAssert([managedObject isKindOfClass:[NSManagedObject class]], @"Relationship connection requires an instance of NSManagedObject");
     NSParameterAssert(connections);
     NSParameterAssert(managedObjectCache);
+    NSParameterAssert(dataSource);
     self = [self init];
     if (self) {
         self.managedObject = managedObject;
         self.connections = connections;
         self.managedObjectCache = managedObjectCache;
+        self.dataSource = dataSource;
     }
 
     return self;
@@ -164,6 +168,7 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
     NSManagedObject *destinationObject = [[NSManagedObject alloc] initWithEntity:connection.relationship.destinationEntity insertIntoManagedObjectContext:self.managedObjectContext];
     if ([self.managedObjectCache respondsToSelector:@selector(didCreateObject:)]) [self.managedObjectCache didCreateObject:destinationObject];
     RKMappingOperation *operation = [[RKMappingOperation alloc] initWithSourceObject:attributes destinationObject:destinationObject mapping:connection.destinationMapping];
+    operation.dataSource = self.dataSource;
     NSError *error;
     [operation performMapping:&error];
     

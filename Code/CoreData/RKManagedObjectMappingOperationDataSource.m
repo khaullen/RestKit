@@ -329,7 +329,7 @@ extern NSString * const RKObjectMappingNestingAttributeKeyName;
 
         RKRelationshipConnectionOperation *connectionOperation = nil;
         if ([connections count]) {
-            connectionOperation = [[RKRelationshipConnectionOperation alloc] initWithManagedObject:mappingOperation.destinationObject connections:connections managedObjectCache:self.managedObjectCache];
+            connectionOperation = [[RKRelationshipConnectionOperation alloc] initWithManagedObject:mappingOperation.destinationObject connections:connections managedObjectCache:self.managedObjectCache dataSource:self];
             [connectionOperation setConnectionBlock:^(RKRelationshipConnectionOperation *operation, RKConnectionDescription *connection, id connectedValue) {
                 if (connectedValue) {
                     if ([mappingOperation.delegate respondsToSelector:@selector(mappingOperation:didConnectRelationship:toValue:usingConnection:)]) {
