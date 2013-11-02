@@ -138,8 +138,6 @@ static BOOL entityIdentificationInferenceEnabled = YES;
 
 @implementation RKEntityMapping
 
-@synthesize identificationAttributes = _identificationAttributes;
-
 + (instancetype)mappingForClass:(Class)objectClass
 {
     @throw [NSException exceptionWithName:NSInternalInconsistencyException
@@ -201,11 +199,6 @@ static BOOL entityIdentificationInferenceEnabled = YES;
 {
     if (attributesOrNames && [attributesOrNames count] == 0) [NSException raise:NSInvalidArgumentException format:@"At least one attribute must be provided to identify managed objects"];
     _identificationAttributes = attributesOrNames ? RKArrayOfAttributesForEntityFromAttributesOrNames(self.entity, attributesOrNames) : nil;
-}
-
-- (NSArray *)identificationAttributes
-{
-    return _identificationAttributes;
 }
 
 - (RKConnectionDescription *)connectionForRelationship:(id)relationshipOrName
