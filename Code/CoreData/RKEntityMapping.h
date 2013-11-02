@@ -115,6 +115,13 @@
 @property (nonatomic, copy) NSPredicate *identificationPredicate;
 
 /**
+ An optional predicate to be used instead of the default predicate in cases where identification attributes combined with AND may not be appropriate. If specified, this predicate will replace the default and only objects matching this predicate will be fetched. Attributes present in identificationAttributes will be substituted for variables of the format $varname.
+ 
+ @return The replacement predicate.
+ */
+@property (nonatomic, copy) NSPredicate *complexPredicate;
+
+/**
  An optional attribute of the receiver's entity that can be used to detect modification of a given instance. This is used to improve the performance of mapping operations by skipping the property mappings for a given object if it is found to be not modified.
  
  A common modification attribute is a 'last modified' or 'updated at' timestamp that specifies the timestamp of the last change to an object. When the `modificationAttribute` is non-nil, the mapper will compare the value returned of the attribute on an existing object instance with the value in the representation being mapped. 

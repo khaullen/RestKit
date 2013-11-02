@@ -185,6 +185,7 @@ static BOOL entityIdentificationInferenceEnabled = YES;
     copy.entity = self.entity;
     copy.identificationAttributes = self.identificationAttributes;
     copy.identificationPredicate = self.identificationPredicate;
+    copy.complexPredicate = self.complexPredicate;
     copy.deletionPredicate = self.deletionPredicate;
     copy.mutableConnections = [NSMutableArray array];
     
