@@ -157,6 +157,7 @@ static NSDictionary *RKConnectionAttributeValuesWithObject(RKConnectionDescripti
         }
         NSSet *managedObjects = [self.managedObjectCache managedObjectsWithEntity:[connection.relationship destinationEntity]
                                                                   attributeValues:attributeValues
+                                                                        predicate:nil
                                                            inManagedObjectContext:self.managedObjectContext];
         if (connection.destinationPredicate) managedObjects = [managedObjects filteredSetUsingPredicate:connection.destinationPredicate];
         if (!connection.includesSubentities) managedObjects = [managedObjects filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"entity == %@", [connection.relationship destinationEntity]]];

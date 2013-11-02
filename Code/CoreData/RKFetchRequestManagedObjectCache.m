@@ -89,6 +89,7 @@ static NSPredicate *RKPredicateWithSubsitutionVariablesForAttributeValues(NSDict
 
 - (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
                     attributeValues:(NSDictionary *)attributeValues
+                          predicate:(NSPredicate *)predicate
              inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
     NSAssert(entity, @"Cannot find existing managed object without a target class");
@@ -97,22 +98,25 @@ static NSPredicate *RKPredicateWithSubsitutionVariablesForAttributeValues(NSDict
     
     if ([attributeValues count] == 0) return [NSSet set];
     
-    NSString *predicateCacheKey = RKPredicateCacheKeyForAttributeValues(attributeValues);
-    
-    __block NSPredicate *substitutionPredicate;
-    dispatch_sync(self.cacheQueue, ^{
-        substitutionPredicate = [self.predicateCache objectForKey:predicateCacheKey];
-    });
-         
-    if (! substitutionPredicate) {
-        substitutionPredicate = RKPredicateWithSubsitutionVariablesForAttributeValues(attributeValues);
-        dispatch_barrier_async(self.cacheQueue, ^{
-            [self.predicateCache setObject:substitutionPredicate forKey:predicateCacheKey];
+    if (!predicate) {
+        NSString *predicateCacheKey = RKPredicateCacheKeyForAttributeValues(attributeValues);
+        
+        __block NSPredicate *substitutionPredicate;
+        dispatch_sync(self.cacheQueue, ^{
+            substitutionPredicate = [self.predicateCache objectForKey:predicateCacheKey];
         });
+             
+        if (! substitutionPredicate) {
+            substitutionPredicate = RKPredicateWithSubsitutionVariablesForAttributeValues(attributeValues);
+            dispatch_barrier_async(self.cacheQueue, ^{
+                [self.predicateCache setObject:substitutionPredicate forKey:predicateCacheKey];
+            });
+        }
+        predicate = substitutionPredicate;
     }
     
     NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:[entity name]];
-    fetchRequest.predicate = [substitutionPredicate predicateWithSubstitutionVariables:attributeValues];
+    fetchRequest.predicate = [predicate predicateWithSubstitutionVariables:attributeValues];
     __block NSError *error = nil;
     __block NSArray *objects = nil;
     [managedObjectContext performBlockAndWait:^{
