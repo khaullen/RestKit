@@ -83,11 +83,32 @@ static dispatch_queue_t RKInMemoryManagedObjectCacheCallbackQueue(void)
 
 - (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
                     attributeValues:(NSDictionary *)attributeValues
+                          predicate:(NSPredicate *)predicate
              inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
     NSParameterAssert(entity);
     NSParameterAssert(attributeValues);
     NSParameterAssert(managedObjectContext);
+    
+    if (predicate) {
+        RKLogWarning(@"Predicate-based caching is not implemented. This executes a fetch request every time.");
+        
+        __block NSArray *objects;
+        __block NSError *error;
+        NSFetchRequest *fetchRequest = [NSFetchRequest new];
+        fetchRequest.entity = entity;
+        fetchRequest.predicate = [predicate predicateWithSubstitutionVariables:attributeValues];
+        fetchRequest.includesPendingChanges = YES;
+        
+        [managedObjectContext performBlockAndWait:^{
+            objects = [managedObjectContext executeFetchRequest:fetchRequest error:&error];
+        }];
+        
+        if (!objects) RKLogError(@"Failed to execute fetch request due to error: %@", error);
+        RKLogDebug(@"Found objects '%@' using fetchRequest '%@'", objects, fetchRequest);
+        
+        return [NSSet setWithArray:objects];
+    }
     
     NSArray *attributes = [attributeValues allKeys];
     if (! [self.entityCache isEntity:entity cachedByAttributes:attributes]) {
