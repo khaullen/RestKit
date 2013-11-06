@@ -73,6 +73,16 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
     return firstCollection;
 }
 
+static BOOL RKDictionaryContainsInvalidAttribute(NSDictionary *attributes)
+{
+    for (id value in attributes.allValues) {
+        if ([value respondsToSelector:@selector(boolValue)]) {
+            if (![value boolValue]) return YES;
+        }
+    }
+    return NO;
+}
+
 @interface RKRelationshipConnectionOperation ()
 @property (nonatomic, strong, readwrite) NSManagedObject *managedObject;
 @property (nonatomic, strong, readwrite) NSArray *connections;
@@ -165,6 +175,8 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
 
 - (NSManagedObject *)createDestinationObject:(RKConnectionDescription *)connection attributes:(NSDictionary *)attributes
 {
+    if (RKDictionaryContainsInvalidAttribute(attributes)) return nil;
+  
     NSManagedObject *destinationObject = [[NSManagedObject alloc] initWithEntity:connection.relationship.destinationEntity insertIntoManagedObjectContext:self.managedObjectContext];
     if ([self.managedObjectCache respondsToSelector:@selector(didCreateObject:)]) [self.managedObjectCache didCreateObject:destinationObject];
     RKMappingOperation *operation = [[RKMappingOperation alloc] initWithSourceObject:attributes destinationObject:destinationObject mapping:connection.destinationMapping];
@@ -213,7 +225,7 @@ static id RKCollectionAttributeKeyWithAttributes(NSDictionary *attributes, BOOL 
         NSMutableDictionary *mappingAttributes = [attributes mutableCopy];
         [mappingAttributes setObject:attributeValue forKey:collectionAttributeKey];
         NSManagedObject *destinationObject = [self createDestinationObject:connection attributes:mappingAttributes];
-        [createdObjects addObject:destinationObject];
+        if (destinationObject) [createdObjects addObject:destinationObject];
     }
     
     return [fetchedObjects setByAddingObjectsFromSet:createdObjects];
